@@ -17,14 +17,14 @@ const errorHandler = (error, request, response, next) => {
 
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
         return response.status(400).send({ error: 'malformatted id' })
+    } else if (error.name === 'ValidationError') {
+        return response.status(400).json({error: error.message})
     }
 
     next(error)
 }
 
 app.use(errorHandler)
-
-let persons = []
 
 app.get('/api/persons', (req, res) => {
     Person.find({}).then(persons => {
@@ -45,9 +45,8 @@ app.get('/api/persons/:id', (req, res, next) => {
     )
 })
 
-app.put('api/persons/:id', (request, response, next) => {
+app.put('/api/persons/:id', (request, response, next) => {
     const body = request.body
-
     const person = {
         name: body.name,
         number: body.number,
@@ -68,32 +67,20 @@ app.delete('/api/persons/:id', (req, res, next) => {
         .catch(error => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     const body = request.body
-    
-    if (!body.name || !body.number) {
-        return response.status(400).json({
-            error: 'name or number is missing'
-        })
-    } else if (persons.find(person => person.name === body.name)) {
-        return response.status(400).json({
-            error: 'name must be unique'
-        })
-    }
     
     const person = new Person ({
         name: body.name,
         number: body.number
     })
     
-    person.save().then(savedPerson => {
-        response.json(savedPerson.toJSON())
-    })
-})
-
-app.get('/info', (req, res) => {
-    res.send(`<p>Phonebook has info for ${persons.length} people</p>
-    <p>${new Date()}</p>`)
+    person.save()
+        .then(savedPerson => savedPerson.toJSON())
+        .then(savedAdFormattedPerson => {
+            response.json(savedAdFormattedPerson)
+        })
+        .catch(error => next(error))
 })
 
 const PORT = process.env.PORT
